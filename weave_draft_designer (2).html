@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weave Draft Designer</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'MS Sans Serif', Arial, sans-serif; font-size: 11px; background: #008080; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+#win-frame { display: flex; flex-direction: column; flex: 1; margin: 4px; border: 2px solid; border-color: #ffffff #808080 #808080 #ffffff; background: #c0c0c0; overflow: hidden; box-shadow: 2px 2px 0 #000; }
+
+#title-bar { background: linear-gradient(to right, #000080, #1084d0); color: #fff; padding: 3px 4px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; user-select: none; }
+#title-bar-left { display: flex; align-items: center; gap: 5px; font-weight: bold; font-size: 12px; }
+#title-bar-btns { display: flex; gap: 2px; }
+.title-btn { width: 16px; height: 14px; background: #c0c0c0; border: 1px solid; border-color: #ffffff #808080 #808080 #ffffff; color: #000; font-size: 9px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.title-btn:active { border-color: #808080 #ffffff #ffffff #808080; }
+
+#toolbar { background: #c0c0c0; padding: 3px 4px; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; border-bottom: 2px solid; border-color: #808080 #ffffff #ffffff #808080; flex-shrink: 0; }
+.tb-sep { width: 2px; height: 22px; border-left: 1px solid #808080; border-right: 1px solid #fff; margin: 0 3px; }
+.tb-group { display: flex; align-items: center; gap: 3px; font-size: 11px; }
+.tb-group label { color: #000; }
+.tb-group input[type=number] { width: 42px; padding: 1px 3px; border: 2px solid; border-color: #808080 #ffffff #ffffff #808080; background: #fff; font-family: 'MS Sans Serif', Arial, sans-serif; font-size: 11px; color: #000; }
+
+.w98-btn { padding: 3px 8px; background: #c0c0c0; border: 2px solid; border-color: #ffffff #808080 #808080 #ffffff; font-family: 'MS Sans Serif', Arial, sans-serif; font-size: 11px; color: #000; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap; box-shadow: 1px 1px 0 #000; }
+.w98-btn:active { border-color: #808080 #ffffff #ffffff #808080; padding: 4px 7px 2px 9px; box-shadow: none; }
+.w98-btn:hover { background: #d4d0c8; }
+.w98-btn.pressed { border-color: #808080 #ffffff #ffffff #808080; background: #b0b0b0; box-shadow: none; }
+.ico { font-size: 14px; line-height: 1; }
+
+/* Selection toolbar */
+#sel-toolbar { background: #c0c0c0; padding: 2px 4px; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid #808080; flex-shrink: 0; display: none; }
+#sel-toolbar.visible { display: flex; }
+#sel-toolbar span { font-size: 10px; color: #000080; font-weight: bold; margin-right: 4px; }
+
+#statusbar { background: #c0c0c0; border-top: 2px solid; border-color: #808080 #fff #fff #808080; padding: 2px 6px; font-size: 10px; color: #000; display: flex; gap: 12px; flex-shrink: 0; }
+.sb-panel { border: 1px solid; border-color: #808080 #fff #fff #808080; padding: 1px 6px; }
+
+#body-inner { display: flex; flex-direction: column; flex: 1; overflow: hidden; background: #c0c0c0; }
+#top-half { display: flex; flex: 1; overflow: hidden; min-height: 0; gap: 2px; padding: 2px; }
+
+.win-panel { display: flex; flex-direction: column; border: 2px solid; border-color: #808080 #ffffff #ffffff #808080; background: #fff; overflow: hidden; }
+.panel-title { background: linear-gradient(to right, #000080, #1084d0); color: #fff; font-size: 10px; padding: 2px 6px; font-weight: bold; flex-shrink: 0; letter-spacing: 0.5px; }
+
+/* Threading */
+#threading-section { width: 55%; min-width: 0; }
+#threading-wrapper { display: flex; flex: 1; overflow: hidden; position: relative; }
+#shaft-labels { flex-shrink: 0; width: 30px; background: #c0c0c0; border-right: 1px solid #808080; overflow: hidden; display: flex; flex-direction: column; }
+#shaft-labels-top-spacer { flex-shrink: 0; }
+#shaft-labels-inner { display: flex; flex-direction: column; overflow: hidden; }
+.shaft-label { height: 18px; line-height: 18px; font-size: 9px; color: #000080; text-align: center; border-bottom: 1px solid #c0c0c0; font-weight: bold; flex-shrink: 0; background: #c0c0c0; }
+#threading-scroll { flex: 1; overflow: auto; position: relative; }
+#threading-grid { display: flex; flex-direction: column; width: max-content; position: relative; }
+#threading-sel-overlay { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 10; }
+#warp-color-row { display: flex; }
+.warp-color-cell { width: 18px; height: 13px; cursor: crosshair; border: 1px solid #808080; flex-shrink: 0; }
+#end-number-row { display: flex; }
+.end-num { width: 18px; height: 13px; font-size: 7px; color: #444; text-align: center; line-height: 13px; flex-shrink: 0; border-right: 1px solid #c0c0c0; background: #e8e8e8; }
+.thread-row { display: flex; }
+.thread-cell { width: 18px; height: 18px; border: 1px solid #c0c0c0; cursor: crosshair; flex-shrink: 0; background: #fff; }
+.thread-cell.filled { background: #000080; border-color: #000080; }
+.thread-cell:hover { background: #d0d8f8; }
+.thread-cell.filled:hover { background: #0000a8; }
+.thread-cell.selected { outline: 2px solid #ff0000; outline-offset: -2px; }
+
+/* Lifting */
+#lifting-section { flex: 1; min-width: 0; }
+#lifting-body { display: flex; flex: 1; overflow: hidden; }
+#pick-labels { flex-shrink: 0; width: 32px; background: #c0c0c0; border-right: 1px solid #808080; display: flex; flex-direction: column; overflow: hidden; }
+#pick-labels-shaft-spacer { flex-shrink: 0; height: 14px; }
+#pick-labels-viewport { flex: 1; overflow: hidden; position: relative; }
+#pick-labels-inner { position: absolute; top: 0; left: 0; width: 100%; }
+.pick-label { height: 18px; line-height: 18px; font-size: 9px; color: #000080; text-align: center; border-bottom: 1px solid #c0c0c0; font-weight: bold; position: absolute; width: 100%; left: 0; background: #c0c0c0; }
+#lifting-scroll { flex: 1; overflow: auto; position: relative; }
+#lifting-grid { display: flex; flex-direction: column; width: max-content; position: relative; }
+#lifting-sel-overlay { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 10; }
+#lifting-shaft-header { display: flex; }
+.lift-shaft-hdr { width: 18px; height: 14px; font-size: 8px; color: #800000; text-align: center; line-height: 14px; flex-shrink: 0; border-right: 1px solid #c0c0c0; font-weight: bold; background: #e8e8e8; }
+.lift-row { display: flex; }
+.lift-cell { width: 18px; height: 18px; border: 1px solid #c0c0c0; cursor: crosshair; flex-shrink: 0; background: #fff; }
+.lift-cell.lifted { background: #000; border-color: #000; }
+.lift-cell:hover { background: #d0d0d0; }
+.lift-cell.lifted:hover { background: #333; }
+.lift-cell.selected { outline: 2px solid #ff0000; outline-offset: -2px; }
+#weft-col { flex-shrink: 0; width: 14px; display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid #808080; }
+#weft-col-spacer { flex-shrink: 0; height: 14px; }
+#weft-col-viewport { flex: 1; overflow: hidden; position: relative; }
+#weft-col-inner { position: absolute; top: 0; left: 0; width: 100%; }
+.weft-color-cell { width: 14px; height: 18px; cursor: crosshair; border-bottom: 1px solid #808080; display: block; position: absolute; left: 0; }
+
+/* Drawdown */
+#drawdown-section { min-height: 80px; flex-shrink: 0; }
+#drawdown-section.win-panel { height: 35%; }
+#drawdown-toolbar { display: flex; align-items: center; gap: 6px; padding: 2px 6px; background: #c0c0c0; border-bottom: 1px solid #808080; flex-shrink: 0; }
+#drawdown-toolbar span { font-size: 10px; font-weight: bold; color: #000; }
+.zoom-btn { width: 18px; height: 16px; background: #c0c0c0; border: 2px solid; border-color: #fff #808080 #808080 #fff; font-size: 11px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.zoom-btn:active { border-color: #808080 #fff #fff #808080; }
+#zoom-label { font-size: 10px; color: #000; min-width: 32px; text-align: center; }
+#drawdown-scroll { flex: 1; overflow: auto; background: #fff; }
+canvas#drawdown { display: block; }
+
+/* Colour palette popup */
+#pal-popup { position: fixed; background: #c0c0c0; border: 2px solid; border-color: #fff #808080 #808080 #fff; z-index: 3000; display: none; flex-direction: column; box-shadow: 2px 2px 0 #000; min-width: 140px; }
+#pal-popup.visible { display: flex; }
+#pal-titlebar { background: linear-gradient(to right, #000080, #1084d0); color: #fff; font-size: 10px; font-weight: bold; padding: 2px 5px; }
+#pal-body { padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+#pal-label { font-size: 10px; color: #000; }
+#pal-grid { display: grid; grid-template-columns: repeat(8, 20px); gap: 2px; }
+.pal-swatch { width: 20px; height: 20px; border: 2px solid; border-color: #fff #808080 #808080 #fff; cursor: pointer; }
+.pal-swatch:hover { border-color: #000; }
+.pal-swatch.selected-swatch { border-color: #ff0 #ff0 #ff0 #ff0; }
+#pal-close { padding: 3px 8px; background: #c0c0c0; border: 2px solid; border-color: #fff #808080 #808080 #fff; font-family: 'MS Sans Serif', Arial, sans-serif; font-size: 11px; cursor: pointer; align-self: flex-end; }
+#pal-close:active { border-color: #808080 #fff #fff #808080; }
+
+/* Modals */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000; display: none; align-items: center; justify-content: center; }
+.modal-bg.visible { display: flex; }
+.modal-win { background: #c0c0c0; border: 2px solid; border-color: #fff #808080 #808080 #fff; box-shadow: 4px 4px 0 #000; min-width: 300px; display: flex; flex-direction: column; }
+.modal-title { background: linear-gradient(to right, #000080, #1084d0); color: #fff; font-weight: bold; font-size: 12px; padding: 3px 6px; display: flex; align-items: center; gap: 5px; }
+.modal-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.modal-body p { font-size: 10px; color: #000; }
+.modal-body textarea { background: #fff; border: 2px solid; border-color: #808080 #fff #fff #808080; font-family: monospace; font-size: 10px; padding: 4px; resize: vertical; height: 100px; color: #000; }
+.modal-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.modal-btns button { padding: 4px 10px; background: #c0c0c0; border: 2px solid; border-color: #fff #808080 #808080 #fff; font-family: 'MS Sans Serif', Arial, sans-serif; font-size: 11px; cursor: pointer; box-shadow: 1px 1px 0 #000; display: flex; align-items: center; gap: 4px; }
+.modal-btns button:active { border-color: #808080 #fff #fff #808080; }
+.modal-msg { font-size: 10px; color: #000080; min-height: 14px; }
+.rm-group { display: flex; flex-direction: column; gap: 4px; }
+.rm-group label { font-size: 10px; color: #000; font-weight: bold; }
+.rm-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.rm-group input[type=number] { width: 50px; padding: 1px 3px; border: 2px solid; border-color: #808080 #fff #fff #808080; background: #fff; font-size: 11px; }
+.rm-row button { padding: 3px 8px; background: #c0c0c0; border: 2px solid; border-color: #fff #808080 #808080 #fff; font-family: 'MS Sans Serif', Arial, sans-serif; font-size: 11px; cursor: pointer; box-shadow: 1px 1px 0 #000; }
+.rm-row button:active { border-color: #808080 #fff #fff #808080; }
+hr.win-hr { border: none; border-top: 1px solid #808080; border-bottom: 1px solid #fff; margin: 2px 0; }
+
+::-webkit-scrollbar { width: 16px; height: 16px; }
+::-webkit-scrollbar-track { background: #c0c0c0; border: 1px solid #808080; }
+::-webkit-scrollbar-thumb { background: #c0c0c0; border: 2px solid; border-color: #fff #808080 #808080 #fff; }
+::-webkit-scrollbar-button { background: #c0c0c0; border: 2px solid; border-color: #fff #808080 #808080 #fff; width: 16px; height: 16px; }
+::-webkit-scrollbar-corner { background: #c0c0c0; }
+</style>
+</head>
+<body>
+<div id="win-frame">
+  <div id="title-bar">
+    <div id="title-bar-left"><span>🧵</span><span>Weave Draft Designer</span></div>
+    <div id="title-bar-btns">
+      <div class="title-btn">_</div><div class="title-btn">□</div><div class="title-btn" style="font-weight:bold;">✕</div>
+    </div>
+  </div>
+
+  <div id="toolbar">
+    <div class="tb-group"><label>Ends:</label><input type="number" id="numEnds" value="24" min="1" max="200"></div>
+    <div class="tb-group"><label>Picks:</label><input type="number" id="numPicks" value="24" min="1" max="200"></div>
+    <div class="tb-group"><label>Shafts:</label><input type="number" id="numShafts" value="8" min="1" max="24"></div>
+    <button class="w98-btn" onclick="applySettings()"><span class="ico">⚙️</span>Apply</button>
+    <div class="tb-sep"></div>
+    <button class="w98-btn" onclick="clearAll()"><span class="ico">🗑️</span>Clear</button>
+    <button class="w98-btn" onclick="fillPlainWeave()"><span class="ico">▦</span>Plain Weave</button>
+    <button class="w98-btn" onclick="fillTwill()"><span class="ico">▧</span>2/2 Twill</button>
+    <div class="tb-sep"></div>
+    <button class="w98-btn" id="btn-draw-mode" onclick="setMode('draw')" title="Draw mode"><span class="ico">✏️</span>Draw</button>
+    <button class="w98-btn" id="btn-sel-mode" onclick="setMode('select')" title="Select mode"><span class="ico">⬚</span>Select</button>
+    <div class="tb-sep"></div>
+    <button class="w98-btn" onclick="openRepeatModal()"><span class="ico">🔁</span>Repeat/Mirror</button>
+    <button class="w98-btn" onclick="openSaveLoad()"><span class="ico">💾</span>Save/Load</button>
+    <button class="w98-btn" onclick="exportWIF()"><span class="ico">📤</span>Export WIF</button>
+  </div>
+
+  <!-- Selection action bar -->
+  <div id="sel-toolbar">
+    <span>⬚ Selection:</span>
+    <button class="w98-btn" onclick="copySelection()"><span class="ico">📋</span>Copy</button>
+    <button class="w98-btn" onclick="pasteSelection()"><span class="ico">📌</span>Paste</button>
+    <button class="w98-btn" onclick="deleteSelection()"><span class="ico">🗑️</span>Delete</button>
+    <button class="w98-btn" onclick="clearSelection()"><span class="ico">✕</span>Clear Selection</button>
+  </div>
+
+  <div id="body-inner">
+    <div id="top-half">
+      <div id="threading-section" class="win-panel">
+        <div class="panel-title">📐 Threading Plan</div>
+        <div id="threading-wrapper">
+          <div id="shaft-labels">
+            <div id="shaft-labels-top-spacer"></div>
+            <div id="shaft-labels-inner"></div>
+          </div>
+          <div id="threading-scroll">
+            <div id="threading-grid">
+              <canvas id="threading-sel-overlay"></canvas>
+              <div id="warp-color-row"></div>
+              <div id="end-number-row"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="lifting-section" class="win-panel">
+        <div class="panel-title">🔧 Lifting Plan</div>
+        <div id="lifting-body">
+          <div id="pick-labels">
+            <div id="pick-labels-shaft-spacer"></div>
+            <div id="pick-labels-viewport"><div id="pick-labels-inner"></div></div>
+          </div>
+          <div id="lifting-scroll">
+            <div id="lifting-grid">
+              <canvas id="lifting-sel-overlay"></canvas>
+              <div id="lifting-shaft-header"></div>
+            </div>
+          </div>
+          <div id="weft-col">
+            <div id="weft-col-spacer"></div>
+            <div id="weft-col-viewport"><div id="weft-col-inner"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="drawdown-section" class="win-panel" style="height:35%;margin:0 2px 2px 2px;">
+      <div id="drawdown-toolbar">
+        <span>🖼️ Drawdown Simulation</span>
+        <div class="tb-sep"></div>
+        <button class="zoom-btn" onclick="changeZoom(-1)">−</button>
+        <span id="zoom-label">100%</span>
+        <button class="zoom-btn" onclick="changeZoom(1)">+</button>
+      </div>
+      <div id="drawdown-scroll"><canvas id="drawdown"></canvas></div>
+    </div>
+  </div>
+
+  <div id="statusbar">
+    <span class="sb-panel" id="sb-info">Ends: 24 | Picks: 24 | Shafts: 8</span>
+    <span class="sb-panel" id="sb-mode">Mode: Draw</span>
+    <span class="sb-panel">WIF 1.1 Compatible</span>
+  </div>
+</div>
+
+<!-- Palette popup -->
+<div id="pal-popup">
+  <div id="pal-titlebar">🎨 Choose Colour</div>
+  <div id="pal-body">
+    <div id="pal-label">Select colour</div>
+    <div id="pal-grid"></div>
+    <button id="pal-close" onclick="closePalette()">Close</button>
+  </div>
+</div>
+
+<!-- Save/Load modal -->
+<div id="modal-bg" class="modal-bg">
+  <div class="modal-win">
+    <div class="modal-title">💾 Save / Load Draft</div>
+    <div class="modal-body">
+      <p>Copy the text below to save. Paste it back to load.</p>
+      <textarea id="modal-data" spellcheck="false"></textarea>
+      <div class="modal-btns">
+        <button onclick="saveDraft()">📋 Copy</button>
+        <button onclick="loadDraft()">📂 Load</button>
+        <button onclick="closeModal()">❌ Close</button>
+      </div>
+      <p id="modal-msg" class="modal-msg"></p>
+    </div>
+  </div>
+</div>
+
+<!-- WIF modal -->
+<div id="wif-modal-bg" class="modal-bg">
+  <div class="modal-win" style="min-width:400px;">
+    <div class="modal-title">📤 Export WIF</div>
+    <div class="modal-body">
+      <p>Copy the text below and save as a <strong>.wif</strong> file using Notepad or any text editor.</p>
+      <textarea id="wif-data" spellcheck="false" style="height:160px;font-size:9px;"></textarea>
+      <div class="modal-btns">
+        <button onclick="copyWIF()">📋 Copy to Clipboard</button>
+        <button onclick="closeWIFModal()">❌ Close</button>
+      </div>
+      <p id="wif-msg" class="modal-msg"></p>
+    </div>
+  </div>
+</div>
+
+<!-- Repeat/Mirror modal -->
+<div id="repeat-modal-bg" class="modal-bg">
+  <div class="modal-win" style="min-width:340px;">
+    <div class="modal-title">🔁 Repeat &amp; Mirror Tools</div>
+    <div class="modal-body">
+      <div class="rm-group">
+        <label>Repeat threading:</label>
+        <div class="rm-row"><input type="number" id="rpt-thread-n" value="2" min="2" max="20"><span style="font-size:10px">times</span><button onclick="repeatThreading()">▶ Repeat</button></div>
+      </div>
+      <hr class="win-hr">
+      <div class="rm-group">
+        <label>Repeat lifting:</label>
+        <div class="rm-row"><input type="number" id="rpt-lift-n" value="2" min="2" max="20"><span style="font-size:10px">times</span><button onclick="repeatLifting()">▶ Repeat</button></div>
+      </div>
+      <hr class="win-hr">
+      <div class="rm-group">
+        <label>Mirror:</label>
+        <div class="rm-row">
+          <button onclick="mirrorThreadingH()">↔ Mirror Threading</button>
+          <button onclick="mirrorLiftingV()">↕ Mirror Lifting</button>
+        </div>
+      </div>
+      <hr class="win-hr">
+      <div class="rm-group">
+        <label>Point twill:</label>
+        <div class="rm-row"><button onclick="appendMirrorThreading()">◇ Append Mirror Threading</button></div>
+      </div>
+      <div class="modal-btns" style="margin-top:4px;"><button onclick="closeRepeatModal()">❌ Close</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CELL_BASE = 18, TCELL = 18; // grid cell px (threading/lifting always 18px)
+let zoom = 1, cell = CELL_BASE, zoomIdx = 2;
+const zoomLevels = [0.5, 0.75, 1, 1.5, 2, 3];
+
+let numEnds = 24, numPicks = 24, numShafts = 8;
+let threading = [], lifting = [], warpColors = [], weftColors = [];
+
+// 16-colour palette: 8 muted then 8 bright
+const PALETTE = [
+  '#c8a882','#8fbc8f','#8fa8bc','#b88fbc','#bc8f8f','#a0a07a','#7aabb0','#c8b4a0',
+  '#ffcc00','#ff6600','#cc0000','#006600','#0000cc','#9900cc','#009999','#ffffff'
+];
+
+let palTarget = null; // {type, idx}
+
+// Mode: 'draw' | 'select'
+let mode = 'draw';
+
+// Selection state
+let sel = null; // {grid:'thread'|'lift', r1,c1,r2,c2} (row/col in data coords)
+let isDragging = false, dragGrid = null, dragStart = null;
+let clipboard = null; // {grid, rows: 2d array of booleans}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-draw-mode').classList.toggle('pressed', m === 'draw');
+  document.getElementById('btn-sel-mode').classList.toggle('pressed', m === 'select');
+  document.getElementById('sb-mode').textContent = 'Mode: ' + (m === 'draw' ? 'Draw' : 'Select');
+  document.getElementById('sel-toolbar').classList.toggle('visible', m === 'select');
+  if (m === 'draw') clearSelection();
+  // Change cursor on grid cells
+  document.querySelectorAll('.thread-cell, .lift-cell').forEach(c => {
+    c.style.cursor = m === 'draw' ? 'crosshair' : 'default';
+  });
+}
+
+/* ── PALETTE ── */
+function buildPaletteGrid() {
+  const grid = document.getElementById('pal-grid');
+  grid.innerHTML = '';
+  PALETTE.forEach(col => {
+    const sw = document.createElement('div');
+    sw.className = 'pal-swatch';
+    sw.style.background = col;
+    sw.title = col;
+    sw.addEventListener('click', () => applyPaletteColor(col));
+    grid.appendChild(sw);
+  });
+}
+
+function openPalette(ev, target) {
+  ev.stopPropagation();
+  palTarget = target;
+  const cur = target.type === 'warp' ? warpColors[target.idx] : weftColors[target.idx];
+  document.getElementById('pal-label').textContent =
+    target.type === 'warp' ? `Warp end ${target.idx+1}` : `Weft pick ${target.idx+1}`;
+  document.querySelectorAll('.pal-swatch').forEach(s =>
+    s.classList.toggle('selected-swatch', s.style.background === hexToRgbCss(cur)));
+  const popup = document.getElementById('pal-popup');
+  popup.classList.add('visible');
+  popup.style.left = Math.min(ev.clientX, window.innerWidth-160) + 'px';
+  popup.style.top = Math.min(ev.clientY+8, window.innerHeight-140) + 'px';
+}
+
+function hexToRgbCss(hex) {
+  const [r,g,b] = hexToRGB(hex);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function applyPaletteColor(color) {
+  if (!palTarget) return;
+  if (palTarget.type === 'warp') {
+    warpColors[palTarget.idx] = color;
+    document.querySelectorAll('.warp-color-cell')[palTarget.idx].style.background = color;
+  } else {
+    weftColors[palTarget.idx] = color;
+    document.querySelectorAll('.weft-color-cell').forEach(c => {
+      if (c.title === `Weft pick ${palTarget.idx+1} colour`) c.style.background = color;
+    });
+  }
+  renderDrawdown();
+  closePalette();
+}
+function closePalette() {
+  document.getElementById('pal-popup').classList.remove('visible');
+  palTarget = null;
+}
+document.addEventListener('click', e => {
+  if (!document.getElementById('pal-popup').contains(e.target)) closePalette();
+});
+
+/* ── STATE ── */
+function initState() {
+  threading = Array.from({length: numEnds}, () => new Set());
+  lifting = Array.from({length: numPicks}, () => Array(numShafts).fill(false));
+  warpColors = Array(numEnds).fill(PALETTE[0]);
+  weftColors = Array(numPicks).fill(PALETTE[9]);
+}
+function preserveAndResize() {
+  const oldT = threading;
+  threading = Array.from({length: numEnds}, (_, e) =>
+    e < oldT.length ? new Set([...oldT[e]].filter(x => x < numShafts)) : new Set());
+  const oldL = lifting;
+  lifting = Array.from({length: numPicks}, (_, p) => {
+    const row = Array(numShafts).fill(false);
+    if (p < oldL.length) for (let s = 0; s < numShafts; s++) row[s] = s < oldL[p].length ? oldL[p][s] : false;
+    return row;
+  });
+  while (warpColors.length < numEnds) warpColors.push(PALETTE[0]);
+  warpColors = warpColors.slice(0, numEnds);
+  while (weftColors.length < numPicks) weftColors.push(PALETTE[9]);
+  weftColors = weftColors.slice(0, numPicks);
+}
+
+/* ── BUILD UI ── */
+function buildUI() {
+  buildShaftLabels();
+  buildThreadingGrid();
+  buildLiftingGrid();
+  renderDrawdown();
+  updateStatusBar();
+}
+
+function updateStatusBar() {
+  document.getElementById('sb-info').textContent = `Ends: ${numEnds} | Picks: ${numPicks} | Shafts: ${numShafts}`;
+}
+
+function buildShaftLabels() {
+  document.getElementById('shaft-labels-top-spacer').style.height = '26px';
+  const inner = document.getElementById('shaft-labels-inner');
+  inner.innerHTML = '';
+  // Shaft 1 at bottom = render numShafts down to 1
+  for (let s = numShafts; s >= 1; s--) {
+    const d = document.createElement('div'); d.className = 'shaft-label'; d.textContent = s;
+    inner.appendChild(d);
+  }
+}
+
+function buildThreadingGrid() {
+  const grid = document.getElementById('threading-grid');
+  grid.querySelectorAll('.thread-row').forEach(r => r.remove());
+
+  // overlay canvas
+  const ov = document.getElementById('threading-sel-overlay');
+  ov.width = numEnds * TCELL; ov.height = numShafts * TCELL;
+  ov.style.position = 'absolute';
+  ov.style.top = (13+13) + 'px'; // after color row + number row
+  ov.style.left = '0';
+  ov.style.pointerEvents = 'none';
+
+  const wcRow = document.getElementById('warp-color-row');
+  wcRow.innerHTML = '';
+  for (let e = 0; e < numEnds; e++) {
+    const c = document.createElement('div');
+    c.className = 'warp-color-cell'; c.style.background = warpColors[e];
+    c.title = `Warp end ${e+1} colour`;
+    c.addEventListener('click', ev => openPalette(ev, {type:'warp', idx:e}));
+    wcRow.appendChild(c);
+  }
+  const enRow = document.getElementById('end-number-row');
+  enRow.innerHTML = '';
+  for (let e = 0; e < numEnds; e++) {
+    const c = document.createElement('div'); c.className = 'end-num';
+    if (e === 0 || (e+1) % 5 === 0) c.textContent = e+1;
+    enRow.appendChild(c);
+  }
+  // Render shaft rows top→bottom = shaft numShafts→1 (so shaft 1 is at bottom)
+  for (let s = numShafts - 1; s >= 0; s--) {
+    const row = document.createElement('div'); row.className = 'thread-row';
+    row.dataset.shaft = s;
+    for (let e = 0; e < numEnds; e++) {
+      const c = document.createElement('div');
+      c.className = 'thread-cell' + (threading[e].has(s) ? ' filled' : '');
+      c.style.cursor = mode === 'draw' ? 'crosshair' : 'default';
+      c.dataset.end = e; c.dataset.shaft = s;
+      c.addEventListener('mousedown', ev => onGridMouseDown(ev, 'thread', s, e));
+      c.addEventListener('mousemove', ev => onGridMouseMove(ev, 'thread', s, e));
+      c.addEventListener('mouseup',   ev => onGridMouseUp(ev, 'thread'));
+      c.addEventListener('click',     ev => onThreadClick(ev, e, s));
+      row.appendChild(c);
+    }
+    grid.appendChild(row);
+  }
+}
+
+function buildLiftingGrid() {
+  const grid = document.getElementById('lifting-grid');
+  grid.querySelectorAll('.lift-row').forEach(r => r.remove());
+
+  const ov = document.getElementById('lifting-sel-overlay');
+  ov.width = numShafts * TCELL; ov.height = numPicks * TCELL;
+  ov.style.position = 'absolute';
+  ov.style.top = '14px'; // after shaft header
+  ov.style.left = '0';
+  ov.style.pointerEvents = 'none';
+
+  const hdr = document.getElementById('lifting-shaft-header');
+  hdr.innerHTML = '';
+  for (let s = 0; s < numShafts; s++) {
+    const c = document.createElement('div'); c.className = 'lift-shaft-hdr'; c.textContent = s+1;
+    hdr.appendChild(c);
+  }
+
+  const pli = document.getElementById('pick-labels-inner');
+  pli.innerHTML = ''; pli.style.height = (numPicks * 18) + 'px';
+  const wci = document.getElementById('weft-col-inner');
+  wci.innerHTML = ''; wci.style.height = (numPicks * 18) + 'px';
+
+  for (let p = 0; p < numPicks; p++) {
+    const domIdx = p, pickNum = numPicks - p, pi = pickNum - 1;
+    const lbl = document.createElement('div');
+    lbl.className = 'pick-label'; lbl.textContent = pickNum;
+    lbl.style.top = (domIdx * 18) + 'px';
+    pli.appendChild(lbl);
+    const wcc = document.createElement('div');
+    wcc.className = 'weft-color-cell'; wcc.style.background = weftColors[pi];
+    wcc.style.top = (domIdx * 18) + 'px';
+    wcc.title = `Weft pick ${pickNum} colour`;
+    wcc.addEventListener('click', ev => openPalette(ev, {type:'weft', idx:pi}));
+    wci.appendChild(wcc);
+    const row = document.createElement('div'); row.className = 'lift-row';
+    row.dataset.pick = pi;
+    for (let s = 0; s < numShafts; s++) {
+      const c = document.createElement('div');
+      c.className = 'lift-cell' + (lifting[pi][s] ? ' lifted' : '');
+      c.style.cursor = mode === 'draw' ? 'crosshair' : 'default';
+      c.dataset.pick = pi; c.dataset.shaft = s;
+      c.addEventListener('mousedown', ev => onGridMouseDown(ev, 'lift', pi, s));
+      c.addEventListener('mousemove', ev => onGridMouseMove(ev, 'lift', pi, s));
+      c.addEventListener('mouseup',   ev => onGridMouseUp(ev, 'lift'));
+      c.addEventListener('click',     ev => onLiftClick(ev, pi, s));
+      row.appendChild(c);
+    }
+    grid.appendChild(row);
+  }
+}
+
+/* ── CLICK HANDLERS (draw mode) ── */
+function onThreadClick(ev, end, shaft) {
+  if (mode !== 'draw') return;
+  threading[end].has(shaft) ? threading[end].delete(shaft) : threading[end].add(shaft);
+  const c = ev.currentTarget;
+  c.classList.toggle('filled', threading[end].has(shaft));
+  renderDrawdown();
+}
+function onLiftClick(ev, pi, shaft) {
+  if (mode !== 'draw') return;
+  lifting[pi][shaft] = !lifting[pi][shaft];
+  ev.currentTarget.classList.toggle('lifted', lifting[pi][shaft]);
+  renderDrawdown();
+}
+
+/* ── SELECTION (drag) ── */
+// For threading: row = shaft (0-based), col = end (0-based)
+// For lifting:   row = pick index (0-based, where 0=pick1 at bottom in data), col = shaft
+
+function onGridMouseDown(ev, gridType, row, col) {
+  if (mode !== 'select') return;
+  ev.preventDefault();
+  isDragging = true; dragGrid = gridType;
+  dragStart = {row, col};
+  sel = {grid: gridType, r1: row, c1: col, r2: row, c2: col};
+  drawSelectionOverlay();
+}
+function onGridMouseMove(ev, gridType, row, col) {
+  if (!isDragging || dragGrid !== gridType) return;
+  sel.r2 = row; sel.c2 = col;
+  drawSelectionOverlay();
+}
+function onGridMouseUp(ev, gridType) {
+  if (!isDragging) return;
+  isDragging = false;
+  // normalise
+  if (sel) {
+    const tmp = normalSel(sel);
+    sel = {...sel, ...tmp};
+  }
+  drawSelectionOverlay();
+}
+document.addEventListener('mouseup', () => { if (isDragging) { isDragging = false; if (sel) { const t = normalSel(sel); sel = {...sel,...t}; } drawSelectionOverlay(); } });
+
+function normalSel(s) {
+  return { r1: Math.min(s.r1,s.r2), r2: Math.max(s.r1,s.r2), c1: Math.min(s.c1,s.c2), c2: Math.max(s.c1,s.c2) };
+}
+
+function drawSelectionOverlay() {
+  ['threading-sel-overlay','lifting-sel-overlay'].forEach(id => {
+    const cv = document.getElementById(id);
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, cv.width, cv.height);
+  });
+  if (!sel) return;
+  const ovId = sel.grid === 'thread' ? 'threading-sel-overlay' : 'lifting-sel-overlay';
+  const cv = document.getElementById(ovId);
+  const ctx = cv.getContext('2d');
+  const ns = normalSel(sel);
+  // For threading: col=end, row=shaft
+  // For lifting: col=shaft, row=pick (but DOM rows reversed for lifting display)
+  let x, y, w, h;
+  if (sel.grid === 'thread') {
+    x = ns.c1 * TCELL; y = ns.r1 * TCELL;
+    w = (ns.c2 - ns.c1 + 1) * TCELL; h = (ns.r2 - ns.r1 + 1) * TCELL;
+  } else {
+    // lifting DOM row for pick pi: domIdx = numPicks - 1 - pi
+    const domR1 = numPicks - 1 - ns.r2;
+    const domR2 = numPicks - 1 - ns.r1;
+    x = ns.c1 * TCELL; y = domR1 * TCELL;
+    w = (ns.c2 - ns.c1 + 1) * TCELL; h = (domR2 - domR1 + 1) * TCELL;
+  }
+  ctx.strokeStyle = '#ff0000';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 2]);
+  ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  ctx.fillStyle = 'rgba(255,0,0,0.08)';
+  ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+}
+
+function clearSelection() {
+  sel = null; isDragging = false;
+  drawSelectionOverlay();
+}
+
+function copySelection() {
+  if (!sel) return;
+  const ns = normalSel(sel);
+  const rows = [];
+  if (sel.grid === 'thread') {
+    for (let s = ns.r1; s <= ns.r2; s++) {
+      const row = [];
+      for (let e = ns.c1; e <= ns.c2; e++) row.push(threading[e].has(s));
+      rows.push(row);
+    }
+  } else {
+    for (let p = ns.r1; p <= ns.r2; p++) {
+      const row = [];
+      for (let s = ns.c1; s <= ns.c2; s++) row.push(lifting[p][s]);
+      rows.push(row);
+    }
+  }
+  clipboard = {grid: sel.grid, rows};
+  document.getElementById('sb-mode').textContent = 'Mode: Select — Copied!';
+  setTimeout(() => document.getElementById('sb-mode').textContent = 'Mode: Select', 1500);
+}
+
+function pasteSelection() {
+  if (!clipboard || !sel) return;
+  const ns = normalSel(sel);
+  const pasteR = ns.r1, pasteC = ns.c1;
+  if (clipboard.grid === 'thread' && sel.grid === 'thread') {
+    clipboard.rows.forEach((row, ri) => {
+      row.forEach((val, ci) => {
+        const e = pasteC + ci, s = pasteR + ri;
+        if (e < numEnds && s < numShafts) {
+          val ? threading[e].add(s) : threading[e].delete(s);
+        }
+      });
+    });
+    buildThreadingGrid(); renderDrawdown();
+  } else if (clipboard.grid === 'lift' && sel.grid === 'lift') {
+    clipboard.rows.forEach((row, ri) => {
+      row.forEach((val, ci) => {
+        const p = pasteR + ri, s = pasteC + ci;
+        if (p < numPicks && s < numShafts) lifting[p][s] = val;
+      });
+    });
+    buildLiftingGrid(); renderDrawdown();
+  }
+  drawSelectionOverlay();
+}
+
+function deleteSelection() {
+  if (!sel) return;
+  const ns = normalSel(sel);
+  if (sel.grid === 'thread') {
+    for (let s = ns.r1; s <= ns.r2; s++)
+      for (let e = ns.c1; e <= ns.c2; e++) threading[e].delete(s);
+    buildThreadingGrid(); renderDrawdown();
+  } else {
+    for (let p = ns.r1; p <= ns.r2; p++)
+      for (let s = ns.c1; s <= ns.c2; s++) lifting[p][s] = false;
+    buildLiftingGrid(); renderDrawdown();
+  }
+  drawSelectionOverlay();
+}
+
+/* ── DRAWDOWN ── */
+function changeZoom(dir) {
+  zoomIdx = Math.max(0, Math.min(zoomLevels.length-1, zoomIdx+dir));
+  zoom = zoomLevels[zoomIdx]; cell = Math.round(CELL_BASE * zoom);
+  document.getElementById('zoom-label').textContent = Math.round(zoom*100)+'%';
+  renderDrawdown();
+}
+function renderDrawdown() {
+  const canvas = document.getElementById('drawdown');
+  const ctx = canvas.getContext('2d');
+  canvas.width = numEnds * cell; canvas.height = numPicks * cell;
+  for (let p = 0; p < numPicks; p++) {
+    const y = (numPicks - 1 - p) * cell;
+    for (let e = 0; e < numEnds; e++) {
+      const warpUp = [...threading[e]].some(s => lifting[p][s]);
+      ctx.fillStyle = warpUp ? warpColors[e] : weftColors[p];
+      ctx.fillRect(e*cell, y, cell, cell);
+      if (cell >= 6) { ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.strokeRect(e*cell+.5, y+.5, cell-1, cell-1); }
+    }
+  }
+}
+
+/* ── SCROLL SYNC ── */
+document.getElementById('threading-scroll').addEventListener('scroll', function() {
+  document.getElementById('shaft-labels-inner').style.transform = `translateY(-${this.scrollTop}px)`;
+});
+document.getElementById('lifting-scroll').addEventListener('scroll', function() {
+  const ty = `translateY(-${this.scrollTop}px)`;
+  document.getElementById('pick-labels-inner').style.transform = ty;
+  document.getElementById('weft-col-inner').style.transform = ty;
+});
+
+/* ── SAVE/LOAD ── */
+function openSaveLoad() {
+  const state = { numEnds, numPicks, numShafts,
+    threading: threading.map(s => [...s]), lifting, warpColors, weftColors };
+  document.getElementById('modal-data').value = JSON.stringify(state);
+  document.getElementById('modal-msg').textContent = '';
+  document.getElementById('modal-bg').classList.add('visible');
+}
+function saveDraft() {
+  navigator.clipboard.writeText(document.getElementById('modal-data').value)
+    .then(() => document.getElementById('modal-msg').textContent = '✓ Copied!')
+    .catch(() => document.getElementById('modal-msg').textContent = 'Select all + Ctrl+C to copy manually.');
+}
+function loadDraft() {
+  try {
+    const st = JSON.parse(document.getElementById('modal-data').value);
+    numEnds=st.numEnds; numPicks=st.numPicks; numShafts=st.numShafts;
+    threading=st.threading.map(a => new Set(a)); lifting=st.lifting;
+    warpColors=st.warpColors; weftColors=st.weftColors;
+    document.getElementById('numEnds').value=numEnds;
+    document.getElementById('numPicks').value=numPicks;
+    document.getElementById('numShafts').value=numShafts;
+    buildUI(); document.getElementById('modal-msg').textContent='✓ Draft loaded!';
+  } catch(e) { document.getElementById('modal-msg').textContent='✗ Invalid data.'; }
+}
+function closeModal() { document.getElementById('modal-bg').classList.remove('visible'); }
+
+/* ── WIF EXPORT (copy text) ── */
+function hexToRGB(hex) {
+  const h = hex.replace('#','');
+  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+}
+function buildWIF() {
+  const date = new Date().toISOString().split('T')[0];
+  let w = `[WIF]\nVersion=1.1\nDate=${date}\nSource Program=Weave Draft Designer\nSource Version=1.0\n\n`;
+  w += '[CONTENTS]\nCOLOR PALETTE=true\nCOLOR TABLE=true\nWARP COLORS=true\nWEFT COLORS=true\nWEAVING=true\nWARP=true\nWEFT=true\nTHREADING=true\nTIEUP=false\nLIFTPLAN=true\n\n';
+  const ac = [...new Set([...warpColors,...weftColors])], ci = {};
+  ac.forEach((c,i) => ci[c]=i+1);
+  w += `[COLOR PALETTE]\nEntries=${ac.length}\nForm=RGB\nRange=0,255\n\n[COLOR TABLE]\n`;
+  ac.forEach((c,i) => { const [r,g,b]=hexToRGB(c); w+=`${i+1}=${r},${g},${b}\n`; });
+  w += `\n[WEAVING]\nShafts=${numShafts}\nTreadles=${numPicks}\nRising Shed=true\n\n`;
+  w += `[WARP]\nThreads=${numEnds}\nUnits=Centimeters\nSett=10\n\n`;
+  w += `[WEFT]\nThreads=${numPicks}\nUnits=Centimeters\nSett=10\n\n`;
+  w += '[THREADING]\n';
+  for (let e=0;e<numEnds;e++) { const sh=[...threading[e]].map(s=>s+1).sort((a,b)=>a-b); if(sh.length) w+=`${e+1}=${sh.join(',')}\n`; }
+  w += '\n[LIFTPLAN]\n';
+  for (let p=0;p<numPicks;p++) { const li=lifting[p].map((v,i)=>v?i+1:0).filter(Boolean); if(li.length) w+=`${p+1}=${li.join(',')}\n`; }
+  w += '\n[WARP COLORS]\n';
+  for (let e=0;e<numEnds;e++) w+=`${e+1}=${ci[warpColors[e]]}\n`;
+  w += '\n[WEFT COLORS]\n';
+  for (let p=0;p<numPicks;p++) w+=`${p+1}=${ci[weftColors[p]]}\n`;
+  return w;
+}
+function exportWIF() {
+  const wifText = buildWIF();
+  // Try direct download first (works when hosted externally)
+  try {
+    const blob = new Blob([wifText], {type: 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'weave_draft.wif'; a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    // Fallback: show text to copy (for sandboxed environments)
+    document.getElementById('wif-data').value = wifText;
+    document.getElementById('wif-msg').textContent = '';
+    document.getElementById('wif-modal-bg').classList.add('visible');
+  }
+}
+function copyWIF() {
+  navigator.clipboard.writeText(document.getElementById('wif-data').value)
+    .then(() => document.getElementById('wif-msg').textContent = '✓ Copied! Paste into Notepad and save as weave_draft.wif')
+    .catch(() => document.getElementById('wif-msg').textContent = 'Select all + Ctrl+C to copy manually.');
+}
+function closeWIFModal() { document.getElementById('wif-modal-bg').classList.remove('visible'); }
+
+/* ── REPEAT/MIRROR ── */
+function openRepeatModal() { document.getElementById('repeat-modal-bg').classList.add('visible'); }
+function closeRepeatModal() { document.getElementById('repeat-modal-bg').classList.remove('visible'); }
+function repeatThreading() {
+  const n=Math.max(2,+document.getElementById('rpt-thread-n').value);
+  const orig=threading.slice(),origC=warpColors.slice(),origLen=numEnds;
+  numEnds=Math.min(200,origLen*n); document.getElementById('numEnds').value=numEnds;
+  threading=[]; warpColors=[];
+  for(let i=0;i<numEnds;i++){threading.push(new Set(orig[i%origLen]));warpColors.push(origC[i%origLen]);}
+  buildUI();
+}
+function repeatLifting() {
+  const n=Math.max(2,+document.getElementById('rpt-lift-n').value);
+  const orig=lifting.slice(),origC=weftColors.slice(),origLen=numPicks;
+  numPicks=Math.min(200,origLen*n); document.getElementById('numPicks').value=numPicks;
+  lifting=[]; weftColors=[];
+  for(let i=0;i<numPicks;i++){lifting.push([...orig[i%origLen]]);weftColors.push(origC[i%origLen]);}
+  buildUI();
+}
+function mirrorThreadingH(){threading=[...threading].reverse().map(s=>new Set(s));warpColors=[...warpColors].reverse();buildUI();}
+function mirrorLiftingV(){lifting=[...lifting].reverse().map(r=>[...r]);weftColors=[...weftColors].reverse();buildUI();}
+function appendMirrorThreading(){
+  const orig=threading.slice(),origC=warpColors.slice();
+  const rev=[...orig].reverse().map(s=>new Set(s)),revC=[...origC].reverse();
+  const nl=Math.min(200,numEnds+rev.length);
+  for(let i=numEnds;i<nl;i++){threading.push(rev[i-numEnds]);warpColors.push(revC[i-numEnds]);}
+  numEnds=nl; document.getElementById('numEnds').value=nl; buildUI();
+}
+
+/* ── TOOLBAR ── */
+function applySettings(){
+  numEnds=Math.min(200,Math.max(1,+document.getElementById('numEnds').value));
+  numPicks=Math.min(200,Math.max(1,+document.getElementById('numPicks').value));
+  numShafts=Math.min(24,Math.max(1,+document.getElementById('numShafts').value));
+  preserveAndResize(); buildUI();
+}
+function clearAll(){initState();buildUI();}
+function fillPlainWeave(){
+  initState(); const s=Math.min(2,numShafts);
+  for(let e=0;e<numEnds;e++) threading[e].add(e%s);
+  for(let p=0;p<numPicks;p++) lifting[p][p%s]=true;
+  buildUI();
+}
+function fillTwill(){
+  initState(); const s=Math.min(4,numShafts);
+  for(let e=0;e<numEnds;e++) threading[e].add(e%s);
+  for(let p=0;p<numPicks;p++){const o=p%s;lifting[p][o]=true;lifting[p][(o+1)%s]=true;}
+  buildUI();
+}
+
+buildPaletteGrid();
+initState();
+buildUI();
+setMode('draw');
+</script>
+</body>
+</html>
